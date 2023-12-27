@@ -24,10 +24,16 @@ class OrderForm(StatesGroup):
     parts_list = State()
     car_make = State()
 
-menu_kb = InlineKeyboardMarkup()
-menu_kb.add(InlineKeyboardButton('Заказ автозапчастей', callback_data='order_parts'))
-menu_kb.add(InlineKeyboardButton('Контакты', callback_data='contacts'))
-menu_kb.add(InlineKeyboardButton('Акции', callback_data='promotions'))
+def menu_button():
+    menu_btn = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
+    menu_btn.add(KeyboardButton("Заказ автозапчастей"), KeyboardButton("Заказ запчастей мото, вело, инструменты"))
+    menu_btn.add(KeyboardButton("Контакты"), KeyboardButton("Акции"))
+    return menu_btn
+
+# menu_kb = InlineKeyboardMarkup()
+# menu_kb.add(InlineKeyboardButton('Заказ автозапчастей', callback_data='order_parts'))
+# menu_kb.add(InlineKeyboardButton('Контакты', callback_data='contacts'))
+# menu_kb.add(InlineKeyboardButton('Акции', callback_data='promotions'))
 
 def get_base_keyboard():
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
@@ -43,12 +49,18 @@ def btn_from_vin():
 
 @dp.message_handler(commands=['start', 'menu'])
 async def menu(message: types.Message):
-    await message.answer("Выберите опцию:", reply_markup=menu_kb)
+    await message.answer("Выберите опцию:", reply_markup=menu_button())
 
-@dp.callback_query_handler(lambda c: c.data == 'order_parts')
-async def process_order_parts(callback_query: types.CallbackQuery):
-    await bot.send_message(callback_query.from_user.id, 'Как вас зовут?')
+
+@dp.message_handler(lambda message: message.text.lower() == 'заказ автозапчастей', state='*')
+async def process_order_parts(message: types.Message):
+    await message.answer("Как вас зовут?", reply_markup=get_base_keyboard())
     await OrderForm.name.set()
+
+# @dp.callback_query_handler(lambda c: c.data == 'order_parts')
+# async def process_order_parts(callback_query: types.CallbackQuery):
+#     await bot.send_message(callback_query.from_user.id, 'Как вас зовут?')
+#     await OrderForm.name.set()
 
 @dp.callback_query_handler(lambda c: c.data == 'contacts')
 async def process_contacts(callback_query: types.CallbackQuery):
