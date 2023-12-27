@@ -7,6 +7,9 @@ from aiogram.types import ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButt
 import dotenv
 import os
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
+import sqlite3
+from io import BytesIO
+from PIL import Image
 
 storage = MemoryStorage()
 
@@ -57,6 +60,42 @@ async def process_order_parts(message: types.Message):
     await message.answer("Как вас зовут?", reply_markup=get_base_keyboard())
     await OrderForm.name.set()
 
+@dp.message_handler(lambda message: message.text.lower() == 'акции', state='*')
+async def process_promotions(callback_query: types.CallbackQuery):
+    # Подключение к базе данных SQLite
+    conn = sqlite3.connect('mag.db')
+    cursor = conn.cursor()
+
+    try:
+        # Получение данных из таблицы sales
+        cursor.execute("SELECT desc, imj FROM sales")
+        data = cursor.fetchall()
+
+        if data:
+            for description, image_blob in data:
+                # Отправка сообщения с изображением и описанием
+                image = Image.open(BytesIO(image_blob))
+                image_bytes = BytesIO()
+                image.save(image_bytes, format='PNG')
+                image_bytes.seek(0)
+
+                await bot.send_photo(
+                    callback_query.from_user.id,
+                    photo=image_bytes,
+                    caption=description
+                )
+                
+
+        else:
+            await bot.send_message(callback_query.from_user.id, 'Извините, акций пока нет.')
+
+    except Exception as e:
+        print(f"Error fetching promotions: {e}")
+
+    finally:
+        # Закрытие соединения с базой данных
+        conn.close()
+
 # @dp.callback_query_handler(lambda c: c.data == 'order_parts')
 # async def process_order_parts(callback_query: types.CallbackQuery):
 #     await bot.send_message(callback_query.from_user.id, 'Как вас зовут?')
@@ -67,9 +106,9 @@ async def process_contacts(callback_query: types.CallbackQuery):
     await bot.send_message(callback_query.from_user.id, 'Контактная информация...')
     
 
-@dp.callback_query_handler(lambda c: c.data == 'promotions')
-async def process_promotions(callback_query: types.CallbackQuery):
-    await bot.send_message(callback_query.from_user.id, 'Информация об акциях...')
+# @dp.callback_query_handler(lambda c: c.data == 'promotions')
+# async def process_promotions(callback_query: types.CallbackQuery):
+#     await bot.send_message(callback_query.from_user.id, 'Информация об акциях...')
 
 @dp.message_handler(state=OrderForm.name)
 async def process_name(message: types.Message, state: FSMContext):
