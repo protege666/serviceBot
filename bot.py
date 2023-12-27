@@ -33,11 +33,6 @@ def menu_button():
     menu_btn.add(KeyboardButton("Контакты"), KeyboardButton("Акции"))
     return menu_btn
 
-# menu_kb = InlineKeyboardMarkup()
-# menu_kb.add(InlineKeyboardButton('Заказ автозапчастей', callback_data='order_parts'))
-# menu_kb.add(InlineKeyboardButton('Контакты', callback_data='contacts'))
-# menu_kb.add(InlineKeyboardButton('Акции', callback_data='promotions'))
-
 def get_base_keyboard():
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     keyboard.add(KeyboardButton('Назад'))
@@ -96,19 +91,11 @@ async def process_promotions(callback_query: types.CallbackQuery):
         # Закрытие соединения с базой данных
         conn.close()
 
-# @dp.callback_query_handler(lambda c: c.data == 'order_parts')
-# async def process_order_parts(callback_query: types.CallbackQuery):
-#     await bot.send_message(callback_query.from_user.id, 'Как вас зовут?')
-#     await OrderForm.name.set()
 
 @dp.callback_query_handler(lambda c: c.data == 'contacts')
 async def process_contacts(callback_query: types.CallbackQuery):
     await bot.send_message(callback_query.from_user.id, 'Контактная информация...')
     
-
-# @dp.callback_query_handler(lambda c: c.data == 'promotions')
-# async def process_promotions(callback_query: types.CallbackQuery):
-#     await bot.send_message(callback_query.from_user.id, 'Информация об акциях...')
 
 @dp.message_handler(state=OrderForm.name)
 async def process_name(message: types.Message, state: FSMContext):
