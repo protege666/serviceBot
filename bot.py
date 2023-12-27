@@ -7,7 +7,9 @@ from aiogram.types import ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButt
 import dotenv
 import os
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-
+import sqlite3
+from io import BytesIO
+from PIL import Image
 storage = MemoryStorage()
 
 dotenv = dotenv.load_dotenv("config/.env")
@@ -28,6 +30,43 @@ menu_kb = InlineKeyboardMarkup()
 menu_kb.add(InlineKeyboardButton('Заказ автозапчастей', callback_data='order_parts'))
 menu_kb.add(InlineKeyboardButton('Контакты', callback_data='contacts'))
 menu_kb.add(InlineKeyboardButton('Акции', callback_data='promotions'))
+
+
+@dp.callback_query_handler(lambda c: c.data == 'promotions')
+async def process_promotions(callback_query: types.CallbackQuery):
+    # Подключение к базе данных SQLite
+    conn = sqlite3.connect('mag.db')
+    cursor = conn.cursor()
+
+    try:
+        # Получение данных из таблицы sales
+        cursor.execute("SELECT desc, imj FROM sales")
+        data = cursor.fetchall()
+
+        if data:
+            for description, image_blob in data:
+                # Отправка сообщения с изображением и описанием
+                image = Image.open(BytesIO(image_blob))
+                image_bytes = BytesIO()
+                image.save(image_bytes, format='PNG')
+                image_bytes.seek(0)
+
+                await bot.send_photo(
+                    callback_query.from_user.id,
+                    photo=image_bytes,
+                    caption=description
+                )
+
+        else:
+            await bot.send_message(callback_query.from_user.id, 'Извините, акций пока нет.')
+
+    except Exception as e:
+        print(f"Error fetching promotions: {e}")
+
+    finally:
+        # Закрытие соединения с базой данных
+        conn.close()
+
 
 def get_base_keyboard():
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
