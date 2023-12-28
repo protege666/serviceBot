@@ -27,6 +27,13 @@ class OrderForm(StatesGroup):
     parts_list = State()
     car_make = State()
 
+class SecondForm(StatesGroup):
+    name = State()
+    phone = State()
+    marka = State()
+    model = State()
+    order = State()
+
 def menu_button():
     menu_btn = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
     menu_btn.add(KeyboardButton("Заказ автозапчастей"), KeyboardButton("Заказ запчастей мото, вело, инструменты"))
@@ -54,6 +61,11 @@ async def menu(message: types.Message):
 async def process_order_parts(message: types.Message):
     await message.answer("Как вас зовут?", reply_markup=get_base_keyboard())
     await OrderForm.name.set()
+
+@dp.message_handler(lambda message: message.text.lower() == 'заказ запчастей мото, вело, инструменты', state='*')
+async def moto_process_order_parts(message: types.Message):
+    await message.answer("Давайте познакомимся!\nКак вас зовут?", reply_markup=get_base_keyboard())
+    await SecondForm.name.set()
 
 @dp.message_handler(lambda message: message.text.lower() == 'акции', state='*')
 async def process_promotions(callback_query: types.CallbackQuery):
@@ -178,16 +190,90 @@ async def process_parts_list(message:types.Message, state: FSMContext):
         vin = user_data.get('vin', 'Не указан')
         car_make = user_data.get('car_make', 'Не указан')
         parts_list = user_data.get('parts_list')
-        order_summary = (f"Заказ автозапчастей:\n"
-                        f"Имя: {name}\n"
-                        f"Телефон: {phone}\n"
-                        f"VIN: {vin}\n"
-                        f"Марка авто: {car_make}\n"
-                        f"Список запчастей: {parts_list}")
+        order_summary = (f"*Заказ автозапчастей:*\n"
+                        f"*Имя:* {name}\n"
+                        f"*Телефон:* `{phone}`\n"
+                        f"*VIN:* {vin}\n"
+                        f"*Марка авто:* {car_make}\n"
+                        f"*Список запчастей:* {parts_list}")
 
         # Отправка сообщения администратору или другому пользователю
         admin_id = os.environ['ADMIN_ID']
-        await bot.send_message(admin_id, order_summary)
+        await bot.send_message(admin_id, order_summary, parse_mode="markdown")
+        await state.finish()
+
+
+# Методы для 2 ветки
+
+@dp.message_handler(state=SecondForm.name)
+async def moto_process_name(message: types.Message, state: FSMContext):
+    if message.text.lower() == 'назад':
+        await state.finish()
+        await menu(message)
+    else:    
+        async with state.proxy() as data:
+            data['name'] = message.text
+        await message.answer("Напишите ваш номер телефона, на котором установлен телеграм!", reply_markup=get_base_keyboard())
+        await SecondForm.phone.set()
+
+@dp.message_handler(state=SecondForm.phone)
+async def moto_process_phone(message: types.Message, state: FSMContext):
+    if message.text.lower() == "назад":
+        await bot.send_message(message.from_user.id, 'Давайте познакомимся!\nКак вас зовут?', reply_markup=get_base_keyboard())
+        await SecondForm.previous()
+    else:
+        async with state.proxy() as data:
+            data['phone'] = message.text
+        await message.answer("Напишите вид Вашей техники или инструмента", reply_markup=get_base_keyboard())
+        await SecondForm.marka.set()
+
+@dp.message_handler(state=SecondForm.marka)
+async def moto_process_marka(message: types.Message, state: FSMContext):
+    if message.text.lower() == "назад":
+        await bot.send_message(message.from_user.id, 'Напишите ваш номер телефона, на котором установлен телеграм!', reply_markup=get_base_keyboard())
+        await SecondForm.previous()
+    else:
+        async with state.proxy() as data:
+            data['marka'] = message.text
+        await message.answer("Укажите модель или марку", reply_markup=get_base_keyboard())
+        await SecondForm.model.set()
+
+@dp.message_handler(state=SecondForm.model)
+async def moto_process_model(message: types.Message, state: FSMContext):
+    if message.text.lower() == "назад":
+        await bot.send_message(message.from_user.id, 'Напишите вид Вашей техники или инструмента', reply_markup=get_base_keyboard())
+        await SecondForm.previous()
+    else:
+        async with state.proxy() as data:
+            data['model'] = message.text
+        await message.answer("Напишите список необходимых запчастей", reply_markup=get_base_keyboard())
+        await SecondForm.order.set()
+
+@dp.message_handler(state=SecondForm.order)
+async def moto_process_order(message: types.Message, state: FSMContext):
+    if message.text.lower() == "назад":
+        await bot.send_message(message.from_user.id, 'Укажите модель или марку', reply_markup=get_base_keyboard())
+        await SecondForm.previous()
+    else:
+        async with state.proxy() as data:
+            data['order'] = message.text
+        await message.answer("Спасибо! Вскоре наши менеджеры свяжутся с Вами, для уточнения деталей.")
+        user_data = await state.get_data()
+        name = user_data.get('name')
+        phone = user_data.get('phone')
+        marka = user_data.get('marka')
+        model = user_data.get('model')
+        order = user_data.get('order')
+        order_summary = (f"*Заказ автозапчастей:*\n"
+                        f"*Имя:* {name}\n"
+                        f"*Телефон:* `{phone}`\n"
+                        f"*Вид техники или инструмента:* {marka}\n"
+                        f"*Модель/марка:* {model}\n"
+                        f"*Список запчастей:* {order}")
+
+        # Отправка сообщения администратору или другому пользователю
+        admin_id = os.environ['ADMIN_ID']
+        await bot.send_message(admin_id, order_summary, parse_mode="markdown")
         await state.finish()
 
 
