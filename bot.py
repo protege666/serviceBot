@@ -59,7 +59,7 @@ async def menu(message: types.Message):
 
 @dp.message_handler(lambda message: message.text.lower() == 'заказ автозапчастей', state='*')
 async def process_order_parts(message: types.Message):
-    await message.answer("Как вас зовут?", reply_markup=get_base_keyboard())
+    await message.answer("Давайте познакомимся!\nКак вас зовут?", reply_markup=get_base_keyboard())
     await OrderForm.name.set()
 
 @dp.message_handler(lambda message: message.text.lower() == 'заказ запчастей мото, вело, инструменты', state='*')
@@ -117,30 +117,30 @@ async def process_name(message: types.Message, state: FSMContext):
     else:    
         async with state.proxy() as data:
             data['name'] = message.text
-        await message.answer("Ваш номер телефона?", reply_markup=get_base_keyboard())
+        await message.answer("Напишите ваш номер телефона, на котором установлен телеграм!", reply_markup=get_base_keyboard())
         await OrderForm.phone.set()
 
 @dp.message_handler(state=OrderForm.phone)
 async def process_phone(message: types.Message, state: FSMContext):
     if message.text == "Назад":
-        await bot.send_message(message.from_user.id, 'Как вас зовут?', reply_markup=get_base_keyboard())
+        await bot.send_message(message.from_user.id, 'Давайте познакомимся!\nКак вас зовут?', reply_markup=get_base_keyboard())
         await OrderForm.previous()
     else:
         async with state.proxy() as data:
             data['phone'] = message.text
-        await message.answer("У вас есть VIN код?", reply_markup=btn_from_vin())
+        await message.answer("У Вас есть VIN код авто?", reply_markup=btn_from_vin())
         await OrderForm.vin_check.set()
 
 @dp.message_handler(state=OrderForm.vin_check)
 async def process_vin(message:types.Message, state: FSMContext):
     if message.text.lower() == 'да':
-        await message.answer("Введите VIN код:")
+        await message.answer("Введите VIN код Вашего авто:")
         await OrderForm.vin_code.set()
     elif message.text.lower() == 'нет':
-        await message.answer("Напишите марку вашего авто:", reply_markup=get_base_keyboard())
+        await message.answer("Напишите марку и модель Вашего авто, год выпуска, объем двигателя:", reply_markup=get_base_keyboard())
         await OrderForm.car_make.set()
     elif message.text.lower() == 'назад':
-        await bot.send_message(message.from_user.id, 'Ваш номер телефона?', reply_markup=get_base_keyboard())
+        await bot.send_message(message.from_user.id, 'Напишите ваш номер телефона, на котором установлен телеграм!', reply_markup=get_base_keyboard())
         await OrderForm.previous()
 
 @dp.message_handler(state=OrderForm.vin_code)
@@ -159,7 +159,7 @@ async def process_vin_code(message:types.Message, state: FSMContext):
 @dp.message_handler(state=OrderForm.car_make)
 async def process_vin_code(message:types.Message, state: FSMContext):
     if message.text.lower() == "назад":
-        await bot.send_message(message.from_user.id, 'У вас есть VIN код?', reply_markup=btn_from_vin())
+        await bot.send_message(message.from_user.id, 'У Вас есть VIN код авто?', reply_markup=btn_from_vin())
         await OrderForm.vin_check.set()
     else:
         current_state = await state.get_state()
@@ -175,15 +175,15 @@ async def process_parts_list(message:types.Message, state: FSMContext):
         user_data = await state.get_data()
         previous_state = user_data.get('previous_state')
         if previous_state == "OrderForm:vin_code":
-            await bot.send_message(message.from_user.id, 'Введите VIN код:', reply_markup=get_base_keyboard())
+            await bot.send_message(message.from_user.id, 'Введите VIN код Вашего авто:', reply_markup=get_base_keyboard())
             await OrderForm.vin_code.set()
         elif previous_state == "OrderForm:car_make":
-            await bot.send_message(message.from_user.id, 'Напишите марку вашего авто:', reply_markup=get_base_keyboard())
+            await bot.send_message(message.from_user.id, 'Напишите марку и модель Вашего авто, год выпуска, объем двигателя:', reply_markup=get_base_keyboard())
             await OrderForm.car_make.set()
     else:
         async with state.proxy() as data:
             data['parts_list'] = message.text
-        await message.answer("Спасибо за заказ, скоро с вами свяжутся!")
+        await message.answer("Спасибо! Вскоре наши менеджеры свяжутся с Вами, для уточнения деталей.")
         user_data = await state.get_data()
         name = user_data.get('name')
         phone = user_data.get('phone')
