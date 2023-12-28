@@ -15,7 +15,11 @@ storage = MemoryStorage()
 
 dotenv = dotenv.load_dotenv("config/.env")
 
-bot = Bot(token=os.environ['TOKEN'])
+class Tokens():
+    bot_token = os.environ['TOKEN']
+    admin_id = os.environ['ADMIN_ID']
+
+bot = Bot(Tokens.bot_token)
 dp = Dispatcher(bot, storage=storage)
 dp.middleware.setup(LoggingMiddleware())
 
@@ -26,7 +30,7 @@ class OrderForm(StatesGroup):
     vin_code = State()
     parts_list = State()
     car_make = State()
-
+  
 class SecondForm(StatesGroup):
     name = State()
     phone = State()
@@ -52,10 +56,26 @@ def btn_from_vin():
     keybtn.add(KeyboardButton('Назад'))
     return keybtn
 
+def adminBtn():
+    admin_button = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    admin_button.add(KeyboardButton('Добавить'))
+    admin_button.add(KeyboardButton('Удалить'))
+    admin_button.add(KeyboardButton('Удалить все акции и скидки'))
+    return admin_button
+
+
 @dp.message_handler(commands=['start', 'menu'])
 async def menu(message: types.Message):
     await message.answer("Выберите опцию:", reply_markup=menu_button())
 
+@dp.message_handler(commands=['admin'])
+async def admin_menu(message: types.Message):
+    if str(message.from_user.id) == Tokens.admin_id:
+        return await message.answer("Добро пожаловать в панель админиистратора!", reply_markup=adminBtn())
+    else:
+        await message.answer("Доступа к админ панели нет!")
+        return await menu(message)
+        
 
 @dp.message_handler(lambda message: message.text.lower() == 'заказ автозапчастей', state='*')
 async def process_order_parts(message: types.Message):
@@ -198,8 +218,7 @@ async def process_parts_list(message:types.Message, state: FSMContext):
                         f"*Список запчастей:* {parts_list}")
 
         # Отправка сообщения администратору или другому пользователю
-        admin_id = os.environ['ADMIN_ID']
-        await bot.send_message(admin_id, order_summary, parse_mode="markdown")
+        await bot.send_message(Tokens.admin_id, order_summary, parse_mode="markdown")
         await state.finish()
 
 
@@ -272,8 +291,7 @@ async def moto_process_order(message: types.Message, state: FSMContext):
                         f"*Список запчастей:* {order}")
 
         # Отправка сообщения администратору или другому пользователю
-        admin_id = os.environ['ADMIN_ID']
-        await bot.send_message(admin_id, order_summary, parse_mode="markdown")
+        await bot.send_message(Tokens.admin_id, order_summary, parse_mode="markdown")
         await state.finish()
 
 
