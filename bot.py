@@ -153,7 +153,7 @@ async def process_contacts(message: types.Message):
     # Отправка фото пользователю
     await bot.send_photo(message.from_user.id, photo_data, caption="*Наши контакты:*\n`ЛО, г.Волхов, Железнодорожный переулок 8`\n*Телефон:* `+7 952 224-33-22` (WhatsApp, Telegram)\n\
 *Режим работы:*\n_Понедельник - пятница_ с 9.00 до 19.00\n_Суббота_ - с 9.00 до 18.00\n\
-_Воскресенье_ - выходной\nwww.47moto.ru - Интернет магазин мото/вело/инструмент", parse_mode="markdown")
+_Воскресенье_ - выходной\nwww.47moto.ru - Интернет магазин мото/вело/инструмент", reply_markup=menu_button(), parse_mode="markdown")
 
 
 @dp.message_handler(state=OrderForm.name)
