@@ -64,9 +64,23 @@ def adminBtn():
     return admin_button
 
 
-@dp.message_handler(commands=['start', 'menu'])
+@dp.message_handler(commands=['menu'])
 async def menu(message: types.Message):
     await message.answer("Выберите опцию:", reply_markup=menu_button())
+
+@dp.message_handler(commands=['start'])
+async def start_message(message: types.Message):
+    await bot.send_message(message.from_user.id, "*Наш БОТ, может вам предложить:*\n\
+Подбор запчастей не выходя из дома, на многие виды техники и инструмента.\n\
+Оригинальные и бюджетные аналоги.\n\
+Доступные цены и гарантия качества.\n\
+Удобный способ оплаты.\n\
+*А так же при заказе запчастей через БОТ, бесплатная доставка в пределах города Волхов!!!*\n\
+1. Для подбора запчастей выберите соответствующий раздел\n\
+2. Заполните форму заявки\n\
+3. Ожидайте, наши менеджеры с Вами свяжутся", parse_mode="markdown")
+    await menu(message)
+
 
 @dp.message_handler(commands=['admin'])
 async def admin_menu(message: types.Message):
