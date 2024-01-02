@@ -124,10 +124,23 @@ async def process_promotions(callback_query: types.CallbackQuery):
         conn.close()
 
 
-@dp.callback_query_handler(lambda c: c.data == 'contacts')
-async def process_contacts(callback_query: types.CallbackQuery):
-    await bot.send_message(callback_query.from_user.id, 'Контактная информация...')
-    
+@dp.message_handler(lambda message: message.text.lower() == 'контакты', state='*')
+async def process_contacts(message: types.Message):
+    conn = sqlite3.connect('mag.db')
+    cursor = conn.cursor()
+
+    # Получение фото из таблицы
+    cursor.execute("SELECT photo FROM contact_info")
+    photo_data = cursor.fetchone()[0]
+
+    # Закрытие соединения с базой данных
+    conn.close()
+
+    # Отправка фото пользователю
+    await bot.send_photo(message.from_user.id, photo_data, caption="*Наши контакты:*\n`ЛО, г.Волхов, Железнодорожный переулок 8`\n*Телефон:* `+7 952 224-33-22` (WhatsApp, Telegram)\n\
+*Режим работы:*\n_Понедельник - пятница_ с 9.00 до 19.00\n_Суббота_ - с 9.00 до 18.00\n\
+_Воскресенье_ - выходной\nwww.47moto.ru - Интернет магазин мото/вело/инструмент", parse_mode="markdown")
+
 
 @dp.message_handler(state=OrderForm.name)
 async def process_name(message: types.Message, state: FSMContext):
