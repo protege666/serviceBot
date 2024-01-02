@@ -10,6 +10,9 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 import sqlite3
 from io import BytesIO
 from PIL import Image
+from aiogram import types
+from aiogram.dispatcher.filters import Command
+from aiogram.dispatcher import FSMContext
 
 storage = MemoryStorage()
 
@@ -38,6 +41,11 @@ class SecondForm(StatesGroup):
     model = State()
     order = State()
 
+class AdminForm(StatesGroup):
+    photo = State()
+    desc = State()
+    shdesc = State()
+
 def menu_button():
     menu_btn = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
     menu_btn.add(KeyboardButton("Заказ автозапчастей"), KeyboardButton("Заказ запчастей мото, вело, инструменты"))
@@ -63,7 +71,182 @@ def adminBtn():
     admin_button.add(KeyboardButton('Удалить все акции и скидки'))
     return admin_button
 
+@dp.message_handler(lambda message: message.text == 'Удалить все акции и скидки', state="*")
+async def cmd_delete_all_promotions(message: types.Message):
+    # Выполняем SQL-запрос для удаления всех записей из таблицы sales
+    conn = sqlite3.connect('mag.db', check_same_thread=False)
+    cursor = conn.cursor()
 
+    try:
+        cursor.execute("DELETE FROM sales")
+        conn.commit()
+        await message.answer("Все акции и скидки успешно удалены.")
+    except Exception as e:
+        print(f"Error deleting all promotions: {e}")
+        await message.answer("Произошла ошибка при удалении всех акций и скидок.")
+    finally:
+        conn.close()
+
+
+@dp.message_handler(lambda message: message.text == 'Добавить', state="*")
+async def cmd_add_promotion(message: types.Message, state: FSMContext):
+    await message.answer("Отправьте фотографию акции:")
+    await AdminForm.photo.set()
+
+
+@dp.message_handler(state=AdminForm.photo, content_types=types.ContentType.PHOTO)
+async def process_image(message: types.Message, state: FSMContext):
+    # Сохраняем фотографию в базу данных
+    photo_file_id = message.photo[-1].file_id
+    file_info = await bot.get_file(photo_file_id)
+    file = await bot.download_file(file_info.file_path)
+    image_blob = file.read()
+
+    # Сохраняем фотографию в базу данных
+    conn = sqlite3.connect('mag.db', check_same_thread=False)
+    cursor = conn.cursor()
+
+    try:
+        # Вставляем запись в базу данных только с изображением
+        cursor.execute("INSERT INTO sales (imj, \"desc\", shdesc) VALUES (?, 'Default value', 'Default value')", (image_blob,))
+        conn.commit()
+
+        # Получаем идентификатор только что вставленной записи
+        cursor.execute("SELECT last_insert_rowid()")
+        promo_id = cursor.fetchone()[0]
+
+        # Сохраняем идентификатор в состояние
+        async with state.proxy() as data:
+            data['promo_id'] = promo_id
+
+        await message.answer("Фотография успешно добавлена. Теперь отправьте описание акции:")
+        await AdminForm.desc.set()
+    except Exception as e:
+        print(f"Error adding image to database: {e}")
+        await message.answer("Произошла ошибка при добавлении фотографии в базу данных.")
+    finally:
+        conn.close()
+
+
+
+@dp.message_handler(state=AdminForm.desc)
+async def process_description(message: types.Message, state: FSMContext):
+    # Сохраняем описание в базу данных
+    description = message.text
+
+    # Получаем идентификатор записи, которую нужно обновить
+    async with state.proxy() as data:
+        promo_id = data.get('promo_id')
+
+    if not promo_id:
+        await message.answer("Ошибка: Не удалось определить идентификатор записи.")
+        return
+
+    # Обновляем запись в базе данных
+    conn = sqlite3.connect('mag.db')
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("UPDATE sales SET \"desc\" = ? WHERE id = ?", (description, promo_id))
+        conn.commit()
+        await message.answer("Описание успешно добавлено. Теперь отправьте короткое описание акции:")
+        await AdminForm.shdesc.set()
+    except Exception as e:
+        print(f"Error adding description to database: {e}")
+        await message.answer("Произошла ошибка при добавлении описания в базу данных.")
+
+
+@dp.message_handler(state=AdminForm.shdesc)
+async def process_short_description(message: types.Message, state: FSMContext):
+    # Сохраняем короткое описание в базу данных
+    short_description = message.text
+
+    # Получаем идентификатор записи, которую нужно обновить
+    async with state.proxy() as data:
+        promo_id = data.get('promo_id')
+
+    if not promo_id:
+        await message.answer("Ошибка: Не удалось определить идентификатор записи.")
+        return
+
+    # Обновляем запись в базе данных
+    conn = sqlite3.connect('mag.db')
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("UPDATE sales SET shdesc = ? WHERE id = ?", (short_description, promo_id))
+        conn.commit()
+        await message.answer("Короткое описание успешно добавлено.")
+    except Exception as e:
+        print(f"Error adding short description to database: {e}")
+        await message.answer("Произошла ошибка при добавлении короткого описания в базу данных.")
+
+    await state.finish()
+
+@dp.message_handler(lambda message: message.text.lower() == 'удалить', state="*")
+async def cmd_delete_promotion(message: types.Message, state: FSMContext):
+    try:
+        conn = sqlite3.connect('mag.db', check_same_thread=False)
+        cursor = conn.cursor()
+
+        # Получаем данные из базы данных
+        cursor.execute("SELECT id, \"desc\" FROM sales")
+        rows = cursor.fetchall()
+
+        # Создаем inline-кнопки для каждой записи
+        buttons = []
+        for row in rows:
+            promo_id, promo_desc = row
+            button_text = f"\n{promo_desc}"
+            button = InlineKeyboardButton(button_text, callback_data=f"delete_promo:{promo_id}")
+            buttons.append(button)
+
+        # Создаем обновленную inline-клавиатуру с возможностью многострочных кнопок
+        keyboard = InlineKeyboardMarkup(resize_keyboard=True).add(*buttons)
+
+        await message.answer("Выберите запись для удаления:", reply_markup=keyboard)
+    except Exception as e:
+        print(f"Error fetching records for deletion: {e}")
+        await message.answer("Произошла ошибка при получении записей для удаления.")
+    finally:
+        conn.close()
+
+    await state.finish()
+@dp.callback_query_handler(lambda c: c.data.startswith('delete_promo:'))
+async def process_delete_callback(callback_query: types.CallbackQuery):
+    try:
+        promo_id = int(callback_query.data.split(':')[1])
+
+        conn = sqlite3.connect('mag.db', check_same_thread=False)
+        cursor = conn.cursor()
+
+        # Удаляем запись из базы данных
+        cursor.execute("DELETE FROM sales WHERE id = ?", (promo_id,))
+        conn.commit()
+
+        # Получаем обновленный список записей после удаления
+        cursor.execute("SELECT id, \"desc\" FROM sales")
+        rows = cursor.fetchall()
+
+        # Создаем inline-кнопки для каждой записи
+        buttons = []
+        for row in rows:
+            promo_id, promo_desc = row
+            button = InlineKeyboardButton(f"{promo_desc}", callback_data=f"delete_promo:{promo_id}")
+            buttons.append(button)
+
+        # Создаем обновленную inline-клавиатуру
+        keyboard = InlineKeyboardMarkup().add(*buttons)
+
+        # Отправляем сообщение с обновленной inline-клавиатурой
+        await bot.send_message(callback_query.from_user.id, f"Запись успешно удалена.", reply_markup=keyboard)
+    except ValueError:
+        await bot.send_message(callback_query.from_user.id, "Ошибка: Некорректный идентификатор.")
+    except Exception as e:
+        print(f"Error deleting record from database: {e}")
+        await bot.send_message(callback_query.from_user.id, "Произошла ошибка при удалении записи из базы данных.")
+    finally:
+        conn.close()
 @dp.message_handler(commands=['menu'])
 async def menu(message: types.Message):
     await message.answer("Выберите опцию:", reply_markup=menu_button())
