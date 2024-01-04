@@ -22,6 +22,7 @@ dotenv = dotenv.load_dotenv("config/.env")
 class Tokens():
     bot_token = os.environ['TOKEN']
     admin_id = os.environ['ADMIN_ID']
+    group_id = os.environ['GROUP_ID']
 
 bot = Bot(Tokens.bot_token)
 dp = Dispatcher(bot, storage=storage)
@@ -294,12 +295,12 @@ async def process_delete_callback(callback_query: types.CallbackQuery):
         keyboard = InlineKeyboardMarkup().add(*buttons)
 
         # Отправляем сообщение с обновленной inline-клавиатурой
-        await bot.send_message(callback_query.from_user.id, f"Запись успешно удалена.", reply_markup=keyboard)
+        await bot.send_message(callback_query.chat.id, f"Запись успешно удалена.", reply_markup=keyboard)
     except ValueError:
-        await bot.send_message(callback_query.from_user.id, "Ошибка: Некорректный идентификатор.")
+        await bot.send_message(callback_query.chat.id, "Ошибка: Некорректный идентификатор.")
     except Exception as e:
         print(f"Error deleting record from database: {e}")
-        await bot.send_message(callback_query.from_user.id, "Произошла ошибка при удалении записи из базы данных.")
+        await bot.send_message(callback_query.chat.id, "Произошла ошибка при удалении записи из базы данных.")
     finally:
         conn.close()
 @dp.message_handler(commands=['menu'])
@@ -308,7 +309,7 @@ async def menu(message: types.Message):
 
 @dp.message_handler(commands=['start'])
 async def start_message(message: types.Message):
-    await bot.send_message(message.from_user.id, "*Наш БОТ, может вам предложить:*\n\
+    await bot.send_message(message.chat.id, "*Наш БОТ, может вам предложить:*\n\
 Подбор запчастей не выходя из дома, на многие виды техники и инструмента.\n\
 Оригинальные и бюджетные аналоги.\n\
 Доступные цены и гарантия качества.\n\
@@ -319,7 +320,10 @@ async def start_message(message: types.Message):
 3. Ожидайте, наши менеджеры с Вами свяжутся", parse_mode="markdown")
     await menu(message)
 
-
+@dp.message_handler(commands=['my_id'])
+async def my_id_command(message: types.Message):
+    # Отправка ID чата
+    await message.reply(f"ID этой группы: {message.chat.id}")
 @dp.message_handler(commands=['admin'])
 async def admin_menu(message: types.Message):
     # Подключение к базе данных
@@ -374,14 +378,14 @@ async def process_promotions(callback_query: types.CallbackQuery):
                 image_bytes.seek(0)
 
                 await bot.send_photo(
-                    callback_query.from_user.id,
+                    callback_query.chat.id,
                     photo=image_bytes,
                     caption=description
                 )
                 
 
         else:
-            await bot.send_message(callback_query.from_user.id, 'Извините, акций пока нет.')
+            await bot.send_message(callback_query.chat.id, 'Извините, акций пока нет.')
 
     except Exception as e:
         print(f"Error fetching promotions: {e}")
@@ -404,7 +408,7 @@ async def process_contacts(message: types.Message):
     conn.close()
 
     # Отправка фото пользователю
-    await bot.send_photo(message.from_user.id, photo_data, caption="*Наши контакты:*\n`ЛО, г.Волхов, Железнодорожный переулок 8`\n*Телефон:* `+7 952 224-33-22` (WhatsApp, Telegram)\n\
+    await bot.send_photo(message.chat.id, photo_data, caption="*Наши контакты:*\n`ЛО, г.Волхов, Железнодорожный переулок 8`\n*Телефон:* `+7 952 224-33-22` (WhatsApp, Telegram)\n\
 *Режим работы:*\n_Понедельник - пятница_ с 9.00 до 19.00\n_Суббота_ - с 9.00 до 18.00\n\
 _Воскресенье_ - выходной\nwww.47moto.ru - Интернет магазин мото/вело/инструмент", reply_markup=menu_button(), parse_mode="markdown")
 
@@ -427,7 +431,7 @@ async def process_name(message: types.Message, state: FSMContext):
 @dp.message_handler(state=OrderForm.phone)
 async def process_phone(message: types.Message, state: FSMContext):
     if message.text == "Назад":
-        await bot.send_message(message.from_user.id, 'Давайте познакомимся!\nКак вас зовут?', reply_markup=get_base_keyboard())
+        await bot.send_message(message.chat.id, 'Давайте познакомимся!\nКак вас зовут?', reply_markup=get_base_keyboard())
         await OrderForm.previous()
     else:
         if validate_russian_phone_number(message.text):
@@ -449,13 +453,13 @@ async def process_vin(message:types.Message, state: FSMContext):
         await message.answer("Напишите марку и модель Вашего авто, год выпуска, объем двигателя:", reply_markup=get_base_keyboard())
         await OrderForm.car_make.set()
     elif message.text.lower() == 'назад':
-        await bot.send_message(message.from_user.id, 'Напишите ваш номер телефона, на котором установлен телеграм!', reply_markup=get_base_keyboard())
+        await bot.send_message(message.chat.id, 'Напишите ваш номер телефона, на котором установлен телеграм!', reply_markup=get_base_keyboard())
         await OrderForm.previous()
 
 @dp.message_handler(state=OrderForm.vin_code)
 async def process_vin_code(message:types.Message, state: FSMContext):
     if message.text.lower() == "назад":
-        await bot.send_message(message.from_user.id, 'У вас есть VIN код?', reply_markup=get_base_keyboard())
+        await bot.send_message(message.chat.id, 'У вас есть VIN код?', reply_markup=get_base_keyboard())
         await OrderForm.previous()
     else:
         current_state = await state.get_state()
@@ -468,7 +472,7 @@ async def process_vin_code(message:types.Message, state: FSMContext):
 @dp.message_handler(state=OrderForm.car_make)
 async def process_vin_code(message:types.Message, state: FSMContext):
     if message.text.lower() == "назад":
-        await bot.send_message(message.from_user.id, 'У Вас есть VIN код авто?', reply_markup=btn_from_vin())
+        await bot.send_message(message.chat.id, 'У Вас есть VIN код авто?', reply_markup=btn_from_vin())
         await OrderForm.vin_check.set()
     else:
         current_state = await state.get_state()
@@ -484,10 +488,10 @@ async def process_parts_list(message:types.Message, state: FSMContext):
         user_data = await state.get_data()
         previous_state = user_data.get('previous_state')
         if previous_state == "OrderForm:vin_code":
-            await bot.send_message(message.from_user.id, 'Введите VIN код Вашего авто:', reply_markup=get_base_keyboard())
+            await bot.send_message(message.chat.id, 'Введите VIN код Вашего авто:', reply_markup=get_base_keyboard())
             await OrderForm.vin_code.set()
         elif previous_state == "OrderForm:car_make":
-            await bot.send_message(message.from_user.id, 'Напишите марку и модель Вашего авто, год выпуска, объем двигателя:', reply_markup=get_base_keyboard())
+            await bot.send_message(message.chat.id, 'Напишите марку и модель Вашего авто, год выпуска, объем двигателя:', reply_markup=get_base_keyboard())
             await OrderForm.car_make.set()
     else:
         async with state.proxy() as data:
@@ -507,7 +511,7 @@ async def process_parts_list(message:types.Message, state: FSMContext):
                         f"*Список запчастей:* {parts_list}")
 
         # Отправка сообщения администратору или другому пользователю
-        await bot.send_message(Tokens.admin_id, order_summary, parse_mode="markdown")
+        await bot.send_message(Tokens.group_id, order_summary, parse_mode="markdown")
         await state.finish()
 
 
@@ -532,7 +536,7 @@ async def moto_process_name(message: types.Message, state: FSMContext):
 @dp.message_handler(state=SecondForm.phone)
 async def moto_process_phone(message: types.Message, state: FSMContext):
     if message.text.lower() == "назад":
-        await bot.send_message(message.from_user.id, 'Давайте познакомимся!\nКак вас зовут?', reply_markup=get_base_keyboard())
+        await bot.send_message(message.chat.id, 'Давайте познакомимся!\nКак вас зовут?', reply_markup=get_base_keyboard())
         await SecondForm.previous()
     else:
         if validate_russian_phone_number(message.text):
@@ -547,7 +551,7 @@ async def moto_process_phone(message: types.Message, state: FSMContext):
 @dp.message_handler(state=SecondForm.marka)
 async def moto_process_marka(message: types.Message, state: FSMContext):
     if message.text.lower() == "назад":
-        await bot.send_message(message.from_user.id, 'Напишите ваш номер телефона, на котором установлен телеграм!', reply_markup=get_base_keyboard())
+        await bot.send_message(message.chat.id, 'Напишите ваш номер телефона, на котором установлен телеграм!', reply_markup=get_base_keyboard())
         await SecondForm.previous()
     else:
         async with state.proxy() as data:
@@ -558,7 +562,7 @@ async def moto_process_marka(message: types.Message, state: FSMContext):
 @dp.message_handler(state=SecondForm.model)
 async def moto_process_model(message: types.Message, state: FSMContext):
     if message.text.lower() == "назад":
-        await bot.send_message(message.from_user.id, 'Напишите вид Вашей техники или инструмента', reply_markup=get_base_keyboard())
+        await bot.send_message(message.chat.id, 'Напишите вид Вашей техники или инструмента', reply_markup=get_base_keyboard())
         await SecondForm.previous()
     else:
         async with state.proxy() as data:
@@ -569,7 +573,7 @@ async def moto_process_model(message: types.Message, state: FSMContext):
 @dp.message_handler(state=SecondForm.order)
 async def moto_process_order(message: types.Message, state: FSMContext):
     if message.text.lower() == "назад":
-        await bot.send_message(message.from_user.id, 'Укажите модель или марку', reply_markup=get_base_keyboard())
+        await bot.send_message(message.chat.id, 'Укажите модель или марку', reply_markup=get_base_keyboard())
         await SecondForm.previous()
     else:
         async with state.proxy() as data:
@@ -589,7 +593,7 @@ async def moto_process_order(message: types.Message, state: FSMContext):
                         f"*Список запчастей:* {order}")
 
         # Отправка сообщения администратору или другому пользователю
-        await bot.send_message(Tokens.admin_id, order_summary, parse_mode="markdown")
+        await bot.send_message(Tokens.group_id, order_summary, parse_mode="markdown")
         await state.finish()
 
 
