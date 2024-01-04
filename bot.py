@@ -13,6 +13,7 @@ from PIL import Image
 from aiogram import types
 from aiogram.dispatcher.filters import Command
 from aiogram.dispatcher import FSMContext
+import re
 
 storage = MemoryStorage()
 
@@ -48,6 +49,24 @@ class AdminForm(StatesGroup):
     photo = State()
     desc = State()
     shdesc = State()
+
+def validate_russian_phone_number(phone_number):
+    # Паттерн для российских номеров телефона
+    # Российские номера могут начинаться с +7, 8, или без кода страны
+    pattern = re.compile(r'^(\+7|8|7)?(\d{10})$')
+
+    # Проверка соответствия паттерну
+    match = pattern.match(phone_number)
+    
+    return bool(match)
+
+def validate_russian_name(name):
+    pattern = re.compile(r'^[А-Яа-яЁё\s]+$')
+
+    # Проверка соответствия паттерну
+    match = pattern.match(name)
+
+    return bool(match)
 
 def menu_button():
     menu_btn = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
@@ -395,11 +414,15 @@ async def process_name(message: types.Message, state: FSMContext):
     if message.text.lower() == 'назад':
         await state.finish()
         await menu(message)
-    else:    
-        async with state.proxy() as data:
-            data['name'] = message.text
-        await message.answer("Напишите ваш номер телефона, на котором установлен телеграм!", reply_markup=get_base_keyboard())
-        await OrderForm.phone.set()
+    else:
+        if validate_russian_name(message.text):
+            async with state.proxy() as data:
+                data['name'] = message.text
+            await message.answer("Напишите ваш номер телефона, на котором установлен телеграм!", reply_markup=get_base_keyboard())
+            await OrderForm.phone.set()
+        else:
+            await message.answer("Ваше имя содержит латиницу либо цифры! Попробуйте еще раз!")
+            await OrderForm.name.set()
 
 @dp.message_handler(state=OrderForm.phone)
 async def process_phone(message: types.Message, state: FSMContext):
@@ -407,10 +430,15 @@ async def process_phone(message: types.Message, state: FSMContext):
         await bot.send_message(message.from_user.id, 'Давайте познакомимся!\nКак вас зовут?', reply_markup=get_base_keyboard())
         await OrderForm.previous()
     else:
-        async with state.proxy() as data:
-            data['phone'] = message.text
-        await message.answer("У Вас есть VIN код авто?", reply_markup=btn_from_vin())
-        await OrderForm.vin_check.set()
+        if validate_russian_phone_number(message.text):
+            async with state.proxy() as data:
+                data['phone'] = message.text
+            await message.answer("У Вас есть VIN код авто?", reply_markup=btn_from_vin())
+            await OrderForm.vin_check.set()
+        else:
+            await message.answer("Неверный формат номера! Попробуйте еще раз!")
+            await OrderForm.phone.set()
+
 
 @dp.message_handler(state=OrderForm.vin_check)
 async def process_vin(message:types.Message, state: FSMContext):
@@ -490,11 +518,16 @@ async def moto_process_name(message: types.Message, state: FSMContext):
     if message.text.lower() == 'назад':
         await state.finish()
         await menu(message)
-    else:    
-        async with state.proxy() as data:
-            data['name'] = message.text
-        await message.answer("Напишите ваш номер телефона, на котором установлен телеграм!", reply_markup=get_base_keyboard())
-        await SecondForm.phone.set()
+    else:
+        if validate_russian_name(message.text):
+            async with state.proxy() as data:
+                data['name'] = message.text
+            await message.answer("Напишите ваш номер телефона, на котором установлен телеграм!", reply_markup=get_base_keyboard())
+            await SecondForm.phone.set()
+        else:
+            await message.answer("Ваше имя содержит латиницу либо цифры! Попробуйте еще раз!")
+            await SecondForm.name.set()
+
 
 @dp.message_handler(state=SecondForm.phone)
 async def moto_process_phone(message: types.Message, state: FSMContext):
@@ -502,10 +535,14 @@ async def moto_process_phone(message: types.Message, state: FSMContext):
         await bot.send_message(message.from_user.id, 'Давайте познакомимся!\nКак вас зовут?', reply_markup=get_base_keyboard())
         await SecondForm.previous()
     else:
-        async with state.proxy() as data:
-            data['phone'] = message.text
-        await message.answer("Напишите вид Вашей техники или инструмента", reply_markup=get_base_keyboard())
-        await SecondForm.marka.set()
+        if validate_russian_phone_number(message.text):
+            async with state.proxy() as data:
+                data['phone'] = message.text
+            await message.answer("У Вас есть VIN код авто?", reply_markup=get_base_keyboard())
+            await SecondForm.marka.set()
+        else:
+            await message.answer("Неверный формат номера! Попробуйте еще раз!")
+            await SecondForm.phone.set()
 
 @dp.message_handler(state=SecondForm.marka)
 async def moto_process_marka(message: types.Message, state: FSMContext):
