@@ -41,6 +41,9 @@ class SecondForm(StatesGroup):
     model = State()
     order = State()
 
+class AddForm(StatesGroup):
+    add = State()
+
 class AdminForm(StatesGroup):
     photo = State()
     desc = State()
@@ -70,6 +73,39 @@ def adminBtn():
     admin_button.add(KeyboardButton('Удалить'))
     admin_button.add(KeyboardButton('Удалить все акции и скидки'))
     return admin_button
+
+def adminBtn_plus():
+    admin_button = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    admin_button.add(KeyboardButton('Добавить'))
+    admin_button.add(KeyboardButton('Добавить админа'))
+    admin_button.add(KeyboardButton('Удалить'))
+    admin_button.add(KeyboardButton('Удалить все акции и скидки'))
+    return admin_button
+
+
+@dp.message_handler(lambda message: message.text == 'Добавить админа', state="*")
+async def add_id_handler(message: types.Message):
+    # Запрос пользователя на ввод Telegram ID
+    await message.answer("Введите Telegram ID:")
+    await AddForm.add.set()
+
+@dp.message_handler(state=AddForm.add)
+async def add_admins(message: types.Message, state: FSMContext):
+    telegram_id = message.text
+    conn = sqlite3.connect('mag.db')
+    cursor = conn.cursor()
+
+    # Добавление Telegram ID в базу данных
+    cursor.execute('INSERT INTO admins (telegram_id) VALUES (?)', (telegram_id,))
+
+    # Сохранение изменений и закрытие соединения
+    conn.commit()
+    conn.close()
+
+    # Отправка сообщения об успешном добавлении
+    await message.answer(f"Telegram ID {telegram_id} успешно добавлен в базу данных!")
+    await state.finish()
+    
 
 @dp.message_handler(lambda message: message.text == 'Удалить все акции и скидки', state="*")
 async def cmd_delete_all_promotions(message: types.Message):
@@ -267,7 +303,22 @@ async def start_message(message: types.Message):
 
 @dp.message_handler(commands=['admin'])
 async def admin_menu(message: types.Message):
+    # Подключение к базе данных
+    conn = sqlite3.connect('mag.db')
+    cursor = conn.cursor()
+
+    # Выполнение запроса для получения всех telegram_id из таблицы admins
+    cursor.execute('SELECT telegram_id FROM admins')
+
+    # Извлечение результатов запроса и сохранение их в список
+    telegram_ids = [row[0] for row in cursor.fetchall()]
+
+    # Закрытие соединения
+    conn.close()
+
     if str(message.from_user.id) == Tokens.admin_id:
+        return await message.answer("Добро пожаловать в панель админиистратора!", reply_markup=adminBtn_plus())
+    elif message.from_user.id in telegram_ids:
         return await message.answer("Добро пожаловать в панель админиистратора!", reply_markup=adminBtn())
     else:
         await message.answer("Доступа к админ панели нет!")
