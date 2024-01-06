@@ -39,7 +39,7 @@ class OrderForm(StatesGroup):
 class SecondForm(StatesGroup):
     name = State()
     phone = State()
-    marka = State()
+    view = State()
     model = State()
     order = State()
 
@@ -295,12 +295,12 @@ async def process_delete_callback(callback_query: types.CallbackQuery):
         keyboard = InlineKeyboardMarkup().add(*buttons)
 
         # Отправляем сообщение с обновленной inline-клавиатурой
-        await bot.send_message(callback_query.chat.id, f"Запись успешно удалена.", reply_markup=keyboard)
+        await bot.send_message(callback_query.from_user.id, f"Запись успешно удалена.", reply_markup=keyboard)
     except ValueError:
-        await bot.send_message(callback_query.chat.id, "Ошибка: Некорректный идентификатор.")
+        await bot.send_message(callback_query.from_user.id, "Ошибка: Некорректный идентификатор.")
     except Exception as e:
         print(f"Error deleting record from database: {e}")
-        await bot.send_message(callback_query.chat.id, "Произошла ошибка при удалении записи из базы данных.")
+        await bot.send_message(callback_query.from_user.id, "Произошла ошибка при удалении записи из базы данных.")
     finally:
         conn.close()
 @dp.message_handler(commands=['menu'])
@@ -542,20 +542,20 @@ async def moto_process_phone(message: types.Message, state: FSMContext):
         if validate_russian_phone_number(message.text):
             async with state.proxy() as data:
                 data['phone'] = message.text
-            await message.answer("У Вас есть VIN код авто?", reply_markup=get_base_keyboard())
-            await SecondForm.marka.set()
+            await message.answer("Напишите вид Вашей техники или инструмента", reply_markup=get_base_keyboard())
+            await SecondForm.view.set()
         else:
             await message.answer("Неверный формат номера! Попробуйте еще раз!")
             await SecondForm.phone.set()
 
-@dp.message_handler(state=SecondForm.marka)
+@dp.message_handler(state=SecondForm.view)
 async def moto_process_marka(message: types.Message, state: FSMContext):
     if message.text.lower() == "назад":
         await bot.send_message(message.chat.id, 'Напишите ваш номер телефона, на котором установлен телеграм!', reply_markup=get_base_keyboard())
         await SecondForm.previous()
     else:
         async with state.proxy() as data:
-            data['marka'] = message.text
+            data['view'] = message.text
         await message.answer("Укажите модель или марку", reply_markup=get_base_keyboard())
         await SecondForm.model.set()
 
@@ -582,13 +582,13 @@ async def moto_process_order(message: types.Message, state: FSMContext):
         user_data = await state.get_data()
         name = user_data.get('name')
         phone = user_data.get('phone')
-        marka = user_data.get('marka')
+        view = user_data.get('view')
         model = user_data.get('model')
         order = user_data.get('order')
         order_summary = (f"*Заказ автозапчастей:*\n"
                         f"*Имя:* {name}\n"
                         f"*Телефон:* `{phone}`\n"
-                        f"*Вид техники или инструмента:* {marka}\n"
+                        f"*Вид техники или инструмента:* {view}\n"
                         f"*Модель/марка:* {model}\n"
                         f"*Список запчастей:* {order}")
 
