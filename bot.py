@@ -126,7 +126,6 @@ async def add_admins(message: types.Message, state: FSMContext):
     await message.answer(f"Telegram ID {telegram_id} успешно добавлен в базу данных!")
     await state.finish()
     
-
 @dp.message_handler(lambda message: message.text == 'Удалить все акции и скидки', state="*")
 async def cmd_delete_all_promotions(message: types.Message):
     # Выполняем SQL-запрос для удаления всех записей из таблицы sales
@@ -239,6 +238,10 @@ async def process_short_description(message: types.Message, state: FSMContext):
 
     await state.finish()
 
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+# ...
+
 @dp.message_handler(lambda message: message.text.lower() == 'удалить', state="*")
 async def cmd_delete_promotion(message: types.Message, state: FSMContext):
     try:
@@ -246,14 +249,14 @@ async def cmd_delete_promotion(message: types.Message, state: FSMContext):
         cursor = conn.cursor()
 
         # Получаем данные из базы данных
-        cursor.execute("SELECT id, \"desc\" FROM sales")
+        cursor.execute("SELECT id, \"desc\", shdesc FROM sales")
         rows = cursor.fetchall()
 
         # Создаем inline-кнопки для каждой записи
         buttons = []
         for row in rows:
-            promo_id, promo_desc = row
-            button_text = f"\n{promo_desc}"
+            promo_id, promo_desc, shdesc = row
+            button_text = f"Удалить {shdesc}"
             button = InlineKeyboardButton(button_text, callback_data=f"delete_promo:{promo_id}")
             buttons.append(button)
 
@@ -268,6 +271,9 @@ async def cmd_delete_promotion(message: types.Message, state: FSMContext):
         conn.close()
 
     await state.finish()
+
+# ...
+
 @dp.callback_query_handler(lambda c: c.data.startswith('delete_promo:'))
 async def process_delete_callback(callback_query: types.CallbackQuery):
     try:
@@ -276,26 +282,58 @@ async def process_delete_callback(callback_query: types.CallbackQuery):
         conn = sqlite3.connect('mag.db', check_same_thread=False)
         cursor = conn.cursor()
 
-        # Удаляем запись из базы данных
-        cursor.execute("DELETE FROM sales WHERE id = ?", (promo_id,))
-        conn.commit()
-
-        # Получаем обновленный список записей после удаления
-        cursor.execute("SELECT id, \"desc\" FROM sales")
-        rows = cursor.fetchall()
-
-        # Создаем inline-кнопки для каждой записи
-        buttons = []
-        for row in rows:
+        # Получаем информацию о записи
+        cursor.execute("SELECT id, \"desc\" FROM sales WHERE id = ?", (promo_id,))
+        row = cursor.fetchone()
+        if row:
             promo_id, promo_desc = row
-            button = InlineKeyboardButton(f"{promo_desc}", callback_data=f"delete_promo:{promo_id}")
-            buttons.append(button)
+            message_text = f"Вы уверены, что хотите удалить запись?\n\n{promo_desc}"
+        else:
+            message_text = "Запись не найдена."
 
-        # Создаем обновленную inline-клавиатуру
-        keyboard = InlineKeyboardMarkup().add(*buttons)
+        # Отправляем сообщение с подробной информацией и inline-клавиатурой для подтверждения удаления
+        await bot.send_message(callback_query.from_user.id, message_text, reply_markup=confirm_keyboard(promo_id))
+    except ValueError:
+        await bot.send_message(callback_query.from_user.id, "Ошибка: Некорректный идентификатор.")
+    except Exception as e:
+        print(f"Error processing delete callback: {e}")
+        await bot.send_message(callback_query.from_user.id, "Произошла ошибка при обработке команды удаления.")
+    finally:
+        conn.close()
 
-        # Отправляем сообщение с обновленной inline-клавиатурой
-        await bot.send_message(callback_query.from_user.id, f"Запись успешно удалена.", reply_markup=keyboard)
+# ...
+
+def confirm_keyboard(promo_id):
+    return InlineKeyboardMarkup().add(
+        InlineKeyboardButton("Да, удалить", callback_data=f"confirm_delete:{promo_id}"),
+        InlineKeyboardButton("Отмена", callback_data="cancel_delete")
+    )
+@dp.callback_query_handler(lambda c: c.data == 'cancel_delete')
+async def process_cancel_delete_callback(callback_query: types.CallbackQuery):
+    await bot.send_message(callback_query.from_user.id, "Удаление отменено.")
+    admin_keyboard = adminBtn()
+    await bot.send_message(callback_query.from_user.id, "Возвращаемся к начальной клавиатуре.", reply_markup=admin_keyboard)
+
+    # Завершаем обработку коллбэка
+    await bot.answer_callback_query(callback_query.id)
+
+
+@dp.callback_query_handler(lambda c: c.data.startswith('confirm_delete:'))
+async def process_confirm_delete_callback(callback_query: types.CallbackQuery):
+    try:
+        promo_id = int(callback_query.data.split(':')[1])
+
+        if callback_query.data == 'cancel_delete':
+            await bot.send_message(callback_query.from_user.id, "Удаление отменено.")
+        else:
+            conn = sqlite3.connect('mag.db', check_same_thread=False)
+            cursor = conn.cursor()
+
+            # Удаляем запись из базы данных
+            cursor.execute("DELETE FROM sales WHERE id = ?", (promo_id,))
+            conn.commit()
+
+            await bot.send_message(callback_query.from_user.id, f"Запись успешно удалена.")
     except ValueError:
         await bot.send_message(callback_query.from_user.id, "Ошибка: Некорректный идентификатор.")
     except Exception as e:
@@ -303,12 +341,24 @@ async def process_delete_callback(callback_query: types.CallbackQuery):
         await bot.send_message(callback_query.from_user.id, "Произошла ошибка при удалении записи из базы данных.")
     finally:
         conn.close()
+
+    # Завершаем обработку коллбэка
+    await bot.answer_callback_query(callback_query.id)
+
 @dp.message_handler(commands=['menu'])
 async def menu(message: types.Message):
     await message.answer("Выберите опцию:", reply_markup=menu_button())
 
 @dp.message_handler(commands=['start'])
 async def start_message(message: types.Message):
+    user_id = message.from_user.id
+
+    # Добавляем идентификатор пользователя в таблицу
+    conn = sqlite3.connect('mag.db', check_same_thread=False)
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR IGNORE INTO users (id) VALUES (?)", (user_id,))
+    conn.commit()
+    conn.close()
     await bot.send_message(message.chat.id, "*Наш БОТ, может вам предложить:*\n\
 Подбор запчастей не выходя из дома, на многие виды техники и инструмента.\n\
 Оригинальные и бюджетные аналоги.\n\
@@ -595,7 +645,6 @@ async def moto_process_order(message: types.Message, state: FSMContext):
         # Отправка сообщения администратору или другому пользователю
         await bot.send_message(Tokens.group_id, order_summary, parse_mode="markdown")
         await state.finish()
-
 
 if __name__ == '__main__':
     print("Bot started")
