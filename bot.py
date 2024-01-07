@@ -103,9 +103,9 @@ def adminBtn():
 def adminBtn_plus():
     admin_button = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     admin_button.add(KeyboardButton('Добавить'))
-    admin_button.add(KeyboardButton('Добавить админа'))
     admin_button.add(KeyboardButton('Удалить'))
     admin_button.add(KeyboardButton('Удалить все акции и скидки'))
+    admin_button.add(KeyboardButton('Добавить админа'))
     return admin_button
 
 
@@ -281,7 +281,7 @@ async def cmd_delete_promotion(message: types.Message, state: FSMContext):
             buttons.append(button)
 
         # Создаем обновленную inline-клавиатуру с возможностью многострочных кнопок
-        keyboard = InlineKeyboardMarkup(resize_keyboard=True).add(*buttons)
+        keyboard = InlineKeyboardMarkup(resize_keyboard=True, row_width=1).add(*buttons)
 
         await message.answer("Выберите запись для удаления:", reply_markup=keyboard)
     except Exception as e:
@@ -413,9 +413,9 @@ async def admin_menu(message: types.Message):
     conn.close()
 
     if str(message.from_user.id) == Tokens.admin_id:
-        return await message.answer("Добро пожаловать в панель админиистратора!", reply_markup=adminBtn_plus())
+        return await message.answer("Добро пожаловать в панель администратора!", reply_markup=adminBtn_plus())
     elif message.from_user.id in telegram_ids:
-        return await message.answer("Добро пожаловать в панель админиистратора!", reply_markup=adminBtn())
+        return await message.answer("Добро пожаловать в панель администратора!", reply_markup=adminBtn())
     else:
         await message.answer("Доступа к админ панели нет!")
         return await menu(message)
