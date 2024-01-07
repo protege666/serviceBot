@@ -331,8 +331,11 @@ def confirm_keyboard(promo_id):
 @dp.callback_query_handler(lambda c: c.data == 'cancel_delete')
 async def process_cancel_delete_callback(callback_query: types.CallbackQuery):
     await bot.send_message(callback_query.from_user.id, "Удаление отменено.", reply_markup=adminBtn())
-    admin_keyboard = adminBtn()
-    await bot.send_message(callback_query.from_user.id, "Возвращаемся к начальной клавиатуре.", reply_markup=admin_keyboard)
+    #admin_keyboard = adminBtn()
+    if str(callback_query.from_user.id) == Tokens.admin_id:
+        await bot.send_message(callback_query.from_user.id, "Возвращаемся к начальной клавиатуре.", reply_markup=adminBtn_plus())
+    else:
+        await bot.send_message(callback_query.from_user.id, "Возвращаемся к начальной клавиатуре.", reply_markup=adminBtn())
 
     # Завершаем обработку коллбэка
     await bot.answer_callback_query(callback_query.id)
