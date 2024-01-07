@@ -486,7 +486,16 @@ _Воскресенье_ - выходной\nwww.47moto.ru - Интернет м
 
 @dp.message_handler(state=OrderForm.name)
 async def process_name(message: types.Message, state: FSMContext):
-    if message.text.lower() == 'назад':
+    if message.text == "/start":
+        await state.finish()
+        return await start_message(message)
+    elif message.text == "/menu":
+        await state.finish()
+        return await menu(message)
+    elif message.text == "/admin":
+        await state.finish(message)
+        return await admin_menu()
+    elif message.text.lower() == 'назад':
         await state.finish()
         await menu(message)
     else:
@@ -504,6 +513,15 @@ async def process_phone(message: types.Message, state: FSMContext):
     if message.text == "Назад":
         await bot.send_message(message.chat.id, 'Давайте познакомимся!\nКак вас зовут?', reply_markup=get_base_keyboard())
         await OrderForm.previous()
+    elif message.text == "/start":
+        await state.finish()
+        return await start_message(message)
+    elif message.text == "/menu":
+        await state.finish()
+        return await menu(message)
+    elif message.text == "/admin":
+        await state.finish()
+        return await admin_menu(message)
     else:
         if validate_russian_phone_number(message.text):
             async with state.proxy() as data:
@@ -520,6 +538,15 @@ async def process_vin(message:types.Message, state: FSMContext):
     if message.text.lower() == 'да':
         await message.answer("Введите VIN код Вашего авто:")
         await OrderForm.vin_code.set()
+    elif message.text == "/start":
+        await state.finish()
+        return await start_message(message)
+    elif message.text == "/menu":
+        await state.finish()
+        return await menu(message)
+    elif message.text == "/admin":
+        await state.finish(message)
+        return await admin_menu()
     elif message.text.lower() == 'нет':
         await message.answer("Напишите марку и модель Вашего авто, год выпуска, объем двигателя:", reply_markup=get_base_keyboard())
         await OrderForm.car_make.set()
@@ -532,6 +559,15 @@ async def process_vin_code(message:types.Message, state: FSMContext):
     if message.text.lower() == "назад":
         await bot.send_message(message.chat.id, 'У вас есть VIN код?', reply_markup=get_base_keyboard())
         await OrderForm.previous()
+    elif message.text == "/start":
+        await state.finish()
+        return await start_message(message)
+    elif message.text == "/menu":
+        await state.finish()
+        return await menu(message)
+    elif message.text == "/admin":
+        await state.finish()
+        return await admin_menu(message)
     else:
         current_state = await state.get_state()
         await state.update_data(previous_state=current_state)
@@ -545,6 +581,15 @@ async def process_vin_code(message:types.Message, state: FSMContext):
     if message.text.lower() == "назад":
         await bot.send_message(message.chat.id, 'У Вас есть VIN код авто?', reply_markup=btn_from_vin())
         await OrderForm.vin_check.set()
+    elif message.text == "/start":
+        await state.finish()
+        return await start_message(message)
+    elif message.text == "/menu":
+        await state.finish()
+        return await menu(message)
+    elif message.text == "/admin":
+        await state.finish()
+        return await admin_menu(message)
     else:
         current_state = await state.get_state()
         await state.update_data(previous_state=current_state)
@@ -564,6 +609,15 @@ async def process_parts_list(message:types.Message, state: FSMContext):
         elif previous_state == "OrderForm:car_make":
             await bot.send_message(message.chat.id, 'Напишите марку и модель Вашего авто, год выпуска, объем двигателя:', reply_markup=get_base_keyboard())
             await OrderForm.car_make.set()
+    elif message.text == "/start":
+        await state.finish()
+        return await start_message(message)
+    elif message.text == "/menu":
+        await state.finish()
+        return await menu(message)
+    elif message.text == "/admin":
+        await state.finish()
+        return await admin_menu(message)
     else:
         async with state.proxy() as data:
             data['parts_list'] = message.text
@@ -593,6 +647,15 @@ async def moto_process_name(message: types.Message, state: FSMContext):
     if message.text.lower() == 'назад':
         await state.finish()
         await menu(message)
+    elif message.text == "/start":
+        await state.finish()
+        return await start_message(message)
+    elif message.text == "/menu":
+        await state.finish()
+        return await menu(message)
+    elif message.text == "/admin":
+        await state.finish()
+        return await admin_menu(message)
     else:
         if validate_russian_name(message.text):
             async with state.proxy() as data:
@@ -609,6 +672,15 @@ async def moto_process_phone(message: types.Message, state: FSMContext):
     if message.text.lower() == "назад":
         await bot.send_message(message.chat.id, 'Давайте познакомимся!\nКак вас зовут?', reply_markup=get_base_keyboard())
         await SecondForm.previous()
+    elif message.text == "/start":
+        await state.finish()
+        return await start_message(message)
+    elif message.text == "/menu":
+        await state.finish()
+        return await menu(message)
+    elif message.text == "/admin":
+        await state.finish()
+        return await admin_menu(message)
     else:
         if validate_russian_phone_number(message.text):
             async with state.proxy() as data:
@@ -624,6 +696,15 @@ async def moto_process_marka(message: types.Message, state: FSMContext):
     if message.text.lower() == "назад":
         await bot.send_message(message.chat.id, 'Напишите ваш номер телефона, на котором установлен телеграм!', reply_markup=get_base_keyboard())
         await SecondForm.previous()
+    elif message.text == "/start":
+        await state.finish()
+        return await start_message(message)
+    elif message.text == "/menu":
+        await state.finish()
+        return await menu(message)
+    elif message.text == "/admin":
+        await state.finish()
+        return await admin_menu(message)
     else:
         async with state.proxy() as data:
             data['view'] = message.text
@@ -635,6 +716,15 @@ async def moto_process_model(message: types.Message, state: FSMContext):
     if message.text.lower() == "назад":
         await bot.send_message(message.chat.id, 'Напишите вид Вашей техники или инструмента', reply_markup=get_base_keyboard())
         await SecondForm.previous()
+    elif message.text == "/start":
+        await state.finish()
+        return await start_message(message)
+    elif message.text == "/menu":
+        await state.finish()
+        return await menu(message)
+    elif message.text == "/admin":
+        await state.finish()
+        return await admin_menu(message)
     else:
         async with state.proxy() as data:
             data['model'] = message.text
@@ -646,6 +736,15 @@ async def moto_process_order(message: types.Message, state: FSMContext):
     if message.text.lower() == "назад":
         await bot.send_message(message.chat.id, 'Укажите модель или марку', reply_markup=get_base_keyboard())
         await SecondForm.previous()
+    elif message.text == "/start":
+        await state.finish()
+        return await start_message(message)
+    elif message.text == "/menu":
+        await state.finish()
+        return await menu(message)
+    elif message.text == "/admin":
+        await state.finish()
+        return await admin_menu(message)
     else:
         async with state.proxy() as data:
             data['order'] = message.text
