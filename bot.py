@@ -13,9 +13,8 @@ from PIL import Image
 from aiogram import types
 from aiogram.dispatcher.filters import Command
 from aiogram.dispatcher import FSMContext
-import re
 import requests
-
+import re
 storage = MemoryStorage()
 
 dotenv = dotenv.load_dotenv("config/.env")
@@ -156,7 +155,7 @@ async def cmd_delete_all_promotions(message: types.Message):
     try:
         cursor.execute("DELETE FROM sales")
         conn.commit()
-        await message.answer("Все акции и скидки успешно удалены.")
+        await message.answer("Все акции и скидки успешно удалены.", reply_markup=adminBtn())
     except Exception as e:
         print(f"Error deleting all promotions: {e}")
         await message.answer("Произошла ошибка при удалении всех акций и скидок.")
@@ -252,7 +251,7 @@ async def process_short_description(message: types.Message, state: FSMContext):
     try:
         cursor.execute("UPDATE sales SET shdesc = ? WHERE id = ?", (short_description, promo_id))
         conn.commit()
-        await message.answer("Короткое описание успешно добавлено.")
+        await message.answer("Короткое описание успешно добавлено.", reply_markup=adminBtn())
     except Exception as e:
         print(f"Error adding short description to database: {e}")
         await message.answer("Произошла ошибка при добавлении короткого описания в базу данных.")
@@ -331,7 +330,7 @@ def confirm_keyboard(promo_id):
     )
 @dp.callback_query_handler(lambda c: c.data == 'cancel_delete')
 async def process_cancel_delete_callback(callback_query: types.CallbackQuery):
-    await bot.send_message(callback_query.from_user.id, "Удаление отменено.")
+    await bot.send_message(callback_query.from_user.id, "Удаление отменено.", reply_markup=adminBtn())
     admin_keyboard = adminBtn()
     await bot.send_message(callback_query.from_user.id, "Возвращаемся к начальной клавиатуре.", reply_markup=admin_keyboard)
 
@@ -354,12 +353,12 @@ async def process_confirm_delete_callback(callback_query: types.CallbackQuery):
             cursor.execute("DELETE FROM sales WHERE id = ?", (promo_id,))
             conn.commit()
 
-            await bot.send_message(callback_query.from_user.id, f"Запись успешно удалена.")
+            await bot.send_message(callback_query.from_user.id, f"Запись успешно удалена.", reply_markup=adminBtn())
     except ValueError:
-        await bot.send_message(callback_query.from_user.id, "Ошибка: Некорректный идентификатор.")
+        await bot.send_message(callback_query.from_user.id, "Ошибка: Некорректный идентификатор.", reply_markup=adminBtn())
     except Exception as e:
         print(f"Error deleting record from database: {e}")
-        await bot.send_message(callback_query.from_user.id, "Произошла ошибка при удалении записи из базы данных.")
+        await bot.send_message(callback_query.from_user.id, "Произошла ошибка при удалении записи из базы данных.", reply_markup=adminBtn())
     finally:
         conn.close()
 
@@ -451,12 +450,12 @@ async def process_promotions(callback_query: types.CallbackQuery):
                 await bot.send_photo(
                     callback_query.chat.id,
                     photo=image_bytes,
-                    caption=description
+                    caption=description, reply_markup=menu_button()
                 )
                 
 
         else:
-            await bot.send_message(callback_query.chat.id, 'Извините, акций пока нет.')
+            await bot.send_message(callback_query.chat.id, 'Извините, акций пока нет.', reply_markup=menu_button())
 
     except Exception as e:
         print(f"Error fetching promotions: {e}")
@@ -621,7 +620,7 @@ async def process_parts_list(message:types.Message, state: FSMContext):
     else:
         async with state.proxy() as data:
             data['parts_list'] = message.text
-        await message.answer("Спасибо! Вскоре наши менеджеры свяжутся с Вами, для уточнения деталей.")
+        await message.answer("Спасибо! Вскоре наши менеджеры свяжутся с Вами, для уточнения деталей.", reply_markup=menu_button())
         user_data = await state.get_data()
         name = user_data.get('name')
         phone = user_data.get('phone')
@@ -748,7 +747,7 @@ async def moto_process_order(message: types.Message, state: FSMContext):
     else:
         async with state.proxy() as data:
             data['order'] = message.text
-        await message.answer("Спасибо! Вскоре наши менеджеры свяжутся с Вами, для уточнения деталей.")
+        await message.answer("Спасибо! Вскоре наши менеджеры свяжутся с Вами, для уточнения деталей.", reply_markup=menu_button())
         user_data = await state.get_data()
         name = user_data.get('name')
         phone = user_data.get('phone')
