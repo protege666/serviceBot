@@ -276,7 +276,7 @@ async def cmd_delete_promotion(message: types.Message, state: FSMContext):
         buttons = []
         for row in rows:
             promo_id, promo_desc, shdesc = row
-            button_text = f"Удалить {shdesc}"
+            button_text = f"{shdesc}"
             button = InlineKeyboardButton(button_text, callback_data=f"delete_promo:{promo_id}")
             buttons.append(button)
 
