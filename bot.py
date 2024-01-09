@@ -108,8 +108,19 @@ def adminBtn_plus():
     admin_button.add(KeyboardButton('Добавить админа'))
     return admin_button
 
+def check_command_for_admins(user_id):
+    conn = sqlite3.connect('mag.db')
+    cursor = conn.cursor()
+    # Выполнение запроса для получения всех telegram_id из таблицы admins
+    cursor.execute('SELECT telegram_id FROM admins')
+    # Извлечение результатов запроса и сохранение их в список
+    telegram_ids = [row[0] for row in cursor.fetchall()]
+    # Закрытие соединения
+    conn.close()
+    return user_id in telegram_ids or str(user_id) == Tokens.admin_id
 
-@dp.message_handler(lambda message: message.text == 'Добавить админа', state="*")
+
+@dp.message_handler(lambda message: message.text == 'Добавить админа' and str(message.from_user.id) == Tokens.admin_id, state="*")
 async def add_id_handler(message: types.Message):
     # Запрос пользователя на ввод Telegram ID
     await message.answer("Введите Telegram ID:")
@@ -146,7 +157,7 @@ async def add_admins(message: types.Message, state: FSMContext):
     
     
     
-@dp.message_handler(lambda message: message.text == 'Удалить все акции и скидки', state="*")
+@dp.message_handler(lambda message: message.text == 'Удалить все акции и скидки' and check_command_for_admins(message.from_user.id), state="*")
 async def cmd_delete_all_promotions(message: types.Message):
     # Выполняем SQL-запрос для удаления всех записей из таблицы sales
     conn = sqlite3.connect('mag.db', check_same_thread=False)
@@ -163,7 +174,7 @@ async def cmd_delete_all_promotions(message: types.Message):
         conn.close()
 
 
-@dp.message_handler(lambda message: message.text == 'Добавить', state="*")
+@dp.message_handler(lambda message: message.text == 'Добавить' and check_command_for_admins(message.from_user.id), state="*")
 async def cmd_add_promotion(message: types.Message, state: FSMContext):
     await message.answer("Отправьте фотографию акции:")
     await AdminForm.photo.set()
@@ -262,7 +273,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # ...
 
-@dp.message_handler(lambda message: message.text.lower() == 'удалить', state="*")
+@dp.message_handler(lambda message: message.text.lower() == 'удалить' and check_command_for_admins(message.from_user.id), state="*")
 async def cmd_delete_promotion(message: types.Message, state: FSMContext):
     try:
         conn = sqlite3.connect('mag.db', check_same_thread=False)
